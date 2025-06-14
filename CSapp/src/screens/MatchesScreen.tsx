@@ -2,12 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { View, Text, FlatList, ActivityIndicator, StyleSheet, RefreshControl, TouchableOpacity, Image, ScrollView, TextInput } from 'react-native';
 import api from '../services/api';
 import BottomNavbar from '../components/BottomNavbar';
+import Feather from 'react-native-vector-icons/Feather';
 
 interface Team {
   name: string;
   logo?: string;
   country?: string;
   score?: string;
+  maps?: string;
 }
 
 interface Event {
@@ -122,7 +124,7 @@ export default function MatchesScreen() {
       {item.event && (
         <View style={styles.eventRow}>
           <Image source={{ uri: getLogo(item.event.logo) }} style={styles.eventLogo} />
-          <Text style={styles.eventName} numberOfLines={1} ellipsizeMode="tail">
+          <Text style={styles.eventName} numberOfLines={2}>
             {item.event.name}
           </Text>
         </View>
@@ -134,7 +136,8 @@ export default function MatchesScreen() {
           <Text
             style={[
               styles.teamName,
-              !item.team1?.name?.trim() && { color: '#bbb', fontStyle: 'italic' }
+              isLive && styles.teamNameLive,
+              (!item.team1?.name?.trim() && { color: '#bbb', fontStyle: 'italic' })
             ]}
             numberOfLines={1}
             ellipsizeMode="tail"
@@ -142,14 +145,27 @@ export default function MatchesScreen() {
             {item.team1?.name?.trim() ? item.team1.name : 'A definir'}
           </Text>
         </View>
+        {isLive && (
+          <View style={styles.scoreBlock}>
+            <Text style={styles.scoreLive}>{item.team1?.score ?? ''}</Text>
+            <Text style={styles.mapsLive}>({item.team1?.maps ?? '0'})</Text>
+          </View>
+        )}
         <View style={styles.vsBlock}>
           <Text style={styles.vs}>vs</Text>
         </View>
+        {isLive && (
+          <View style={styles.scoreBlock}>
+            <Text style={styles.scoreLive}>{item.team2?.score ?? ''}</Text>
+            <Text style={styles.mapsLive}>({item.team2?.maps ?? '0'})</Text>
+          </View>
+        )}
         <View style={styles.teamBlockRight}>
           <Text
             style={[
               styles.teamName,
-              !item.team2?.name?.trim() && { color: '#bbb', fontStyle: 'italic' }
+              isLive && styles.teamNameLive,
+              (!item.team2?.name?.trim() && { color: '#bbb', fontStyle: 'italic' })
             ]}
             numberOfLines={1}
             ellipsizeMode="tail"
@@ -163,21 +179,62 @@ export default function MatchesScreen() {
   );
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#f4f6fa' }}>
-      <View style={styles.headerRow}>
-        <Image source={require('../../assets/images/icon.png')} style={styles.headerIcon} />
-        <Text style={styles.headerTitle}>CSapp</Text>
-      </View>
-      <Text style={styles.headerSubtitle}>Jogos ao vivo e próximos</Text>
-      <View style={styles.topActions}>
+    <View style={{ flex: 1, backgroundColor: '#f7f9fc' }}>
+      {/* Filtro de campeonatos no topo */}
+      <View style={styles.tabsContainer}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.tabsScroll}
+        >
+          <TouchableOpacity
+            style={[
+              styles.champTab,
+              !selectedChamp && styles.champTabActive
+            ]}
+            onPress={() => setSelectedChamp(null)}
+          >
+            <Text style={[styles.champTabText, !selectedChamp && styles.champTabTextActive]}>
+              Todos
+            </Text>
+          </TouchableOpacity>
+          {championships.map(champ => (
+            <TouchableOpacity
+              key={champ.name}
+              style={[
+                styles.champTab,
+                selectedChamp === champ.name && styles.champTabActive
+              ]}
+              onPress={() => setSelectedChamp(champ.name)}
+            >
+              {champ.logo ? (
+                <Image
+                  source={{ uri: getLogo(champ.logo) }}
+                  style={styles.champTabLogo}
+                />
+              ) : null}
+              <Text style={[
+                styles.champTabText,
+                selectedChamp === champ.name && styles.champTabTextActive
+              ]}
+                numberOfLines={1}
+                ellipsizeMode="tail"
+              >
+                {champ.name}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+        {/* Botão de busca discreto */}
         <TouchableOpacity
           style={styles.searchIconBtn}
           onPress={() => setShowSearch(v => !v)}
           activeOpacity={0.7}
         >
-          <Text style={{ fontSize: 24 }}>🔍</Text>
+          <Feather name="search" size={22} color="#2196F3" />
         </TouchableOpacity>
       </View>
+      {/* Barra de busca integrada */}
       {showSearch && (
         <View style={styles.searchBarContainer}>
           <TextInput
@@ -193,49 +250,7 @@ export default function MatchesScreen() {
           />
         </View>
       )}
-
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={{ marginVertical: 10, minHeight: 48, maxHeight: 60 }}
-        contentContainerStyle={{ paddingHorizontal: 10, alignItems: 'center', height: 48 }}
-      >
-        <TouchableOpacity
-          style={[
-            styles.champTab,
-            !selectedChamp && styles.champTabActive
-          ]}
-          onPress={() => setSelectedChamp(null)}
-        >
-          <Text style={[styles.champTabText, !selectedChamp && styles.champTabTextActive]}>
-            Todos
-          </Text>
-        </TouchableOpacity>
-        {championships.map(champ => (
-          <TouchableOpacity
-            key={champ.name}
-            style={[
-              styles.champTab,
-              selectedChamp === champ.name && styles.champTabActive
-            ]}
-            onPress={() => setSelectedChamp(champ.name)}
-          >
-            {champ.logo ? (
-              <Image
-                source={{ uri: getLogo(champ.logo) }}
-                style={{ width: 20, height: 20, borderRadius: 6, marginRight: 7, backgroundColor: '#eee' }}
-              />
-            ) : null}
-            <Text style={[
-              styles.champTabText,
-              selectedChamp === champ.name && styles.champTabTextActive
-            ]}>
-              {champ.name}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
+      {/* Conteúdo principal */}
       {loading ? (
         <ActivityIndicator size="large" color="#2196F3" style={{ flex: 1, justifyContent: 'center' }} />
       ) : (
@@ -246,9 +261,7 @@ export default function MatchesScreen() {
                 <View>
                   <Text style={styles.liveSection}>AO VIVO</Text>
                   {liveMatches.map((item, idx) => (
-                    <View key={item.link || `live-${idx}`}>
-                      {renderMatchCard(item, true)}
-                    </View>
+                    <View key={item.link || `live-${idx}`}>{renderMatchCard(item, true)}</View>
                   ))}
                   <Text style={styles.section}>Próximas partidas</Text>
                 </View>
@@ -260,7 +273,7 @@ export default function MatchesScreen() {
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           renderItem={({ item }) => renderMatchCard(item, false)}
           ListEmptyComponent={
-            <Text style={{ textAlign: 'center', marginTop: 20 }}>Nenhuma partida carregada.</Text>
+            <Text style={{ textAlign: 'center', marginTop: 20, color: '#888' }}>Nenhuma partida carregada.</Text>
           }
         />
       )}
@@ -305,72 +318,74 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   liveSection: {
-    fontSize: 22,
+    fontSize: 19,
     fontWeight: 'bold',
     color: '#e53935',
     textAlign: 'center',
-    marginTop: 10,
-    marginBottom: 8,
+    marginTop: 8,
+    marginBottom: 6,
     letterSpacing: 1,
   },
   section: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
     color: '#2196F3',
-    marginTop: 24,
-    marginBottom: 8,
+    marginTop: 18,
+    marginBottom: 6,
     textAlign: 'center',
     letterSpacing: 1,
   },
   card: {
     backgroundColor: '#fff',
-    marginHorizontal: 16,
-    marginVertical: 10,
-    padding: 18,
-    borderRadius: 16,
-    elevation: 4,
+    marginHorizontal: 14,
+    marginVertical: 8,
+    padding: 14,
+    borderRadius: 14,
+    elevation: 2,
     shadowColor: '#000',
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 6,
+    shadowOffset: { width: 0, height: 1 },
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e0e4ea',
   },
   liveCard: {
     borderColor: '#e53935',
     borderWidth: 2,
     shadowColor: '#e53935',
-    shadowOpacity: 0.15,
+    shadowOpacity: 0.12,
   },
   topInfo: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 8,
-    gap: 10,
+    marginBottom: 6,
+    gap: 8,
   },
   time: {
     color: '#2196F3',
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: 'bold',
-    marginRight: 8,
+    marginRight: 6,
   },
   meta: {
     color: '#888',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: 'bold',
-    marginRight: 8,
+    marginRight: 6,
   },
   liveBadge: {
     backgroundColor: '#e53935',
-    borderRadius: 8,
-    paddingHorizontal: 12,
-    paddingVertical: 3,
-    marginLeft: 8,
+    borderRadius: 7,
+    paddingHorizontal: 10,
+    paddingVertical: 2,
+    marginLeft: 6,
   },
   liveBadgeText: {
     color: '#fff',
     fontWeight: 'bold',
-    fontSize: 15,
+    fontSize: 13,
     letterSpacing: 1,
   },
   teamsRow: {
@@ -378,7 +393,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     width: '100%',
-    marginTop: 4,
+    marginTop: 2,
   },
   teamBlockLeft: {
     flex: 1,
@@ -396,26 +411,26 @@ const styles = StyleSheet.create({
   },
   teamName: {
     fontWeight: 'bold',
-    fontSize: 16,
+    fontSize: 15,
     color: '#222',
-    maxWidth: 90,
+    maxWidth: 80,
     marginHorizontal: 2,
     textAlign: 'left',
   },
   logo: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: '#eee',
     marginHorizontal: 2,
   },
   vsBlock: {
-    width: 40,
+    width: 34,
     alignItems: 'center',
     justifyContent: 'center',
   },
   vs: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#888',
     fontWeight: 'bold',
     textAlign: 'center',
@@ -424,64 +439,78 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 6,
+    marginBottom: 4,
   },
   eventLogo: {
-    width: 22,
-    height: 22,
+    width: 18,
+    height: 18,
     borderRadius: 4,
     backgroundColor: '#eee',
-    marginRight: 6,
+    marginRight: 5,
   },
   eventName: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#2196F3',
     fontWeight: 'bold',
-    maxWidth: 140,
+    maxWidth: 180,
+    textAlign: 'center',
   },
   searchBarContainer: {
     marginHorizontal: 16,
-    marginTop: 10,
+    marginTop: 8,
     marginBottom: 2,
   },
   searchBar: {
     backgroundColor: '#fff',
-    borderRadius: 24,
-    paddingHorizontal: 18,
-    paddingVertical: 8,
-    fontSize: 16,
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 7,
+    fontSize: 15,
     color: '#222',
     borderWidth: 1,
     borderColor: '#e0e0e0',
-    elevation: 2,
+    elevation: 1,
   },
   champTab: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f4f8ff',
-    borderRadius: 24,
-    paddingHorizontal: 16,
+    borderRadius: 20,
+    paddingHorizontal: 14,
     paddingVertical: 10,
-    marginHorizontal: 4,
+    marginHorizontal: 3,
     borderWidth: 1,
     borderColor: '#2196F3',
-    elevation: 2,
-    minHeight: 38,
-    maxHeight: 44,
+    elevation: 1,
+    minHeight: 36,
+    maxHeight: 40,
   },
   champTabActive: {
     backgroundColor: '#2196F3',
     borderColor: '#2196F3',
-    elevation: 4,
+    elevation: 2,
   },
   champTabText: {
     color: '#2196F3',
     fontWeight: 'bold',
-    fontSize: 15,
-    maxWidth: 120,
+    fontSize: 14,
+    maxWidth: 110,
+    lineHeight: 18,
+    textAlignVertical: 'center',
   },
   champTabTextActive: {
     color: '#fff',
+  },
+  champTabLogo: {
+    width: 18,
+    height: 18,
+    borderRadius: 5,
+    marginRight: 6,
+    backgroundColor: '#eee',
+  },
+  searchIconBtn: {
+    padding: 8,
+    marginLeft: 4,
   },
   topActions: {
     flexDirection: 'row',
@@ -489,11 +518,42 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 10,
   },
-  searchIconBtn: {
-    padding: 8,
+  scoreBlock: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 4,
   },
-  searchIcon: {
-    width: 24,
-    height: 24,
+  scoreLive: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: '#e53935',
+    marginRight: 2,
+  },
+  mapsLive: {
+    fontSize: 16,
+    color: '#2196F3',
+    fontWeight: 'bold',
+  },
+  teamNameLive: {
+    fontSize: 14,
+    maxWidth: 60,
+  },
+  tabsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 8,
+    paddingTop: 18,
+    paddingBottom: 2,
+    backgroundColor: '#f7f9fc',
+    borderBottomWidth: 1,
+    borderBottomColor: '#e0e4ea',
+    minHeight: 60,
+  },
+  tabsScroll: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingRight: 8,
+    minHeight: 44,
   },
 });

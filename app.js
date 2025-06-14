@@ -5,6 +5,7 @@ const resultsRoutes = require('./src/routes/results');
 const rankingRoutes = require('./src/routes/ranking');
 const transfersRoutes = require('./src/routes/transfers');
 const errorHandler = require('./middlewares/errorHandler');
+require('./src/monitor/monitorMatches');
 
 dotenv.config();
 

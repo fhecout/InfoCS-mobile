@@ -28,7 +28,7 @@ module.exports = async function matchesScraper(date) {
                 const status = match.querySelector('.match-meta-live')?.innerText.trim().toUpperCase() || '';
 
                 if (status === 'LIVE') {
-                    // Pega os nomes e logos dos times ao vivo
+                    // Pega os nomes, logos e scores dos times ao vivo
                     const teamDivs = match.querySelectorAll('.match-teams .match-team');
                     if (teamDivs.length === 2) {
                         const team1Name = teamDivs[0].querySelector('.match-teamname.text-ellipsis')?.innerText.trim() || '';
@@ -36,13 +36,56 @@ module.exports = async function matchesScraper(date) {
                         const team1Logo = teamDivs[0].querySelector('.match-team-logo')?.getAttribute('src') || '';
                         const team2Logo = teamDivs[1].querySelector('.match-team-logo')?.getAttribute('src') || '';
 
+                        // Busca o placar ao vivo
+                        const scoreSpans = match.querySelectorAll('.current-map-score');
+                        const team1Score = scoreSpans[0]?.textContent.trim() || '';
+                        const team2Score = scoreSpans[1]?.textContent.trim() || '';
+
+                        // Busca os mapas vencidos (os números entre parênteses)
+                        const mapScoreSpans = match.querySelectorAll('.map-score span');
+                        const team1Maps = mapScoreSpans[0]?.textContent.trim() || '';
+                        const team2Maps = mapScoreSpans[1]?.textContent.trim() || '';
+
+                        // Busca nome e logo do evento
+                        const eventDiv = match.querySelector('a.match-top .match-event');
+                        let eventName = '';
+                        let eventLogo = '';
+                        if (eventDiv) {
+                            // Logo do campeonato
+                            const logoContainer = eventDiv.querySelector('.match-event-logo-container');
+                            if (logoContainer) {
+                                const img = logoContainer.querySelector('img');
+                                if (img) {
+                                    eventLogo = img.getAttribute('src') || '';
+                                    if (!eventName) {
+                                        eventName = img.getAttribute('alt') || '';
+                                    }
+                                }
+                            }
+                            // Nome do campeonato: pega o texto direto (ignora filhos)
+                            for (const node of eventDiv.childNodes) {
+                                if (node.nodeType === 3) { // TEXT_NODE
+                                    const txt = node.textContent.trim();
+                                    if (txt) {
+                                        eventName = txt;
+                                        break;
+                                    }
+                                }
+                            }
+                            // Fallback: tenta pelo atributo data-event-headline se ainda não achou
+                            if (!eventName) {
+                                eventName = eventDiv.getAttribute('data-event-headline') || '';
+                            }
+                        }
+
                         const key = `LIVE-${team1Name}-vs-${team2Name}`;
                         if (team1Name && team2Name && !seen.has(key)) {
                             seen.add(key);
                             data.push({
                                 status: 'LIVE',
-                                team1: { name: team1Name, logo: team1Logo },
-                                team2: { name: team2Name, logo: team2Logo }
+                                team1: { name: team1Name, logo: team1Logo, score: team1Score, maps: team1Maps },
+                                team2: { name: team2Name, logo: team2Logo, score: team2Score, maps: team2Maps },
+                                event: { name: eventName, logo: eventLogo }
                             });
                         }
                     }
@@ -62,13 +105,61 @@ module.exports = async function matchesScraper(date) {
                     team2.score = '';
                     const time = match.querySelector('.match-time')?.innerText.trim() || '';
                     const meta = match.querySelector('.match-meta')?.innerText.trim() || '';
-                    const eventName = match.querySelector('.match-event')?.innerText.trim() || '';
+                    let eventDiv = match.querySelector('a.match-top .match-event');
+                    if (!eventDiv) {
+                        eventDiv = match.querySelector('.match-event');
+                    }
                     let eventLogo = '';
-                    const eventLogoImg = match.querySelector('img.match-event-logo')
-                      || match.querySelector('.match-event-logo img')
-                      || match.querySelector('.match-event-logo-container img');
-                    if (eventLogoImg) {
-                        eventLogo = eventLogoImg.getAttribute('src') || '';
+                    let eventName = '';
+                    if (eventDiv) {
+                        // Logo do campeonato
+                        const logoContainer = eventDiv.querySelector('.match-event-logo-container');
+                        if (logoContainer) {
+                            const img = logoContainer.querySelector('img');
+                            if (img) {
+                                eventLogo = img.getAttribute('src') || '';
+                                if (!eventName) {
+                                    eventName = img.getAttribute('alt') || '';
+                                }
+                            }
+                        }
+                        // Nome do campeonato: pega o texto direto (ignora filhos)
+                        for (const node of eventDiv.childNodes) {
+                            if (node.nodeType === 3) { // TEXT_NODE
+                                const txt = node.textContent.trim();
+                                if (txt) {
+                                    eventName = txt;
+                                    break;
+                                }
+                            }
+                        }
+                        // Fallback: tenta pelo atributo data-event-headline se ainda não achou
+                        if (!eventName) {
+                            eventName = eventDiv.getAttribute('data-event-headline') || '';
+                        }
+                    }
+                    // Fallback: se ainda não encontrou, tenta buscar no bloco pai .event-headline-wrapper
+                    if (!eventName || !eventLogo) {
+                        let parent = match.parentElement;
+                        while (parent && !parent.classList.contains('matches-event-wrapper')) {
+                            parent = parent.parentElement;
+                        }
+                        if (parent) {
+                            const eventHeadline = parent.querySelector('.event-headline-wrapper');
+                            if (eventHeadline) {
+                                const img = eventHeadline.querySelector('img.match-event-logo');
+                                if (img && !eventLogo) {
+                                    eventLogo = img.getAttribute('src') || '';
+                                }
+                                if (img && !eventName) {
+                                    eventName = img.getAttribute('alt') || img.getAttribute('title') || '';
+                                }
+                                if (!eventName) {
+                                    const txt = eventHeadline.querySelector('.event-headline-text');
+                                    if (txt) eventName = txt.textContent.trim();
+                                }
+                            }
+                        }
                     }
                     data.push({
                         time,
@@ -80,7 +171,8 @@ module.exports = async function matchesScraper(date) {
                             name: eventName,
                             logo: eventLogo
                         },
-                        link: match.querySelector('.match-info')?.getAttribute('href') ? `https://www.hltv.org${match.querySelector('.match-info')?.getAttribute('href')}` : ''
+                        link: match.querySelector('.match-info')?.getAttribute('href') ? 
+                              `https://www.hltv.org${match.querySelector('.match-info')?.getAttribute('href')}` : ''
                     });
                 }
             }
@@ -94,4 +186,4 @@ module.exports = async function matchesScraper(date) {
     } finally {
         if (browser) await browser.close();
     }
-}
+};
