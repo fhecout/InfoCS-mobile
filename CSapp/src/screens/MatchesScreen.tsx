@@ -1,8 +1,10 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, Text, FlatList, ActivityIndicator, StyleSheet, RefreshControl, TouchableOpacity, Image, ScrollView, TextInput } from 'react-native';
 import api from '../services/api';
+import { cacheService } from '../services/cache';
 import BottomNavbar from '../components/BottomNavbar';
 import Feather from 'react-native-vector-icons/Feather';
+import { i18n } from '../i18n/i18n';
 
 interface Team {
   name: string;
@@ -57,58 +59,86 @@ export default function MatchesScreen() {
   const [search, setSearch] = useState('');
   const [showSearch, setShowSearch] = useState(false);
 
-  const fetchMatches = async () => {
+  const fetchMatches = useCallback(async (forceRefresh = false) => {
     try {
       setLoading(true);
+      
+      // Tenta pegar do cache primeiro
+      if (!forceRefresh) {
+        const cachedMatches = await cacheService.get('matches');
+        if (cachedMatches) {
+          setMatches(cachedMatches);
+          setLoading(false);
+          return;
+        }
+      }
+
       const response = await api.get('/matches');
-      setMatches(response.data);
+      const newMatches = response.data;
+      
+      // Salva no cache
+      await cacheService.set('matches', newMatches);
+      setMatches(newMatches);
     } catch (error) {
       console.log('Erro ao buscar dados:', error);
     } finally {
       setLoading(false);
       setRefreshing(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     fetchMatches();
-  }, []);
+  }, [fetchMatches]);
 
-  const onRefresh = () => {
+  const onRefresh = useCallback(() => {
     setRefreshing(true);
-    fetchMatches();
-  };
+    fetchMatches(true);
+  }, [fetchMatches]);
 
-  const filteredMatches = matches.filter(m => {
-    const champOk = selectedChamp ? m.event?.name === selectedChamp : true;
-    const searchOk = search.trim() === ''
-      || m.team1.name.toLowerCase().includes(search.toLowerCase())
-      || m.team2.name.toLowerCase().includes(search.toLowerCase());
-    return champOk && searchOk;
-  });
+  // Memoize filtered matches para evitar recálculos desnecessários
+  const filteredMatches = useMemo(() => {
+    return matches.filter(m => {
+      const champOk = selectedChamp ? m.event?.name === selectedChamp : true;
+      const searchOk = search.trim() === ''
+        || m.team1.name.toLowerCase().includes(search.toLowerCase())
+        || m.team2.name.toLowerCase().includes(search.toLowerCase());
+      return champOk && searchOk;
+    });
+  }, [matches, selectedChamp, search]);
 
-  const liveMatches = removeDuplicates(filteredMatches.filter(m => m.status === 'LIVE'));
-  const futureMatches = removeDuplicates(filteredMatches.filter(m => m.status !== 'LIVE'));
+  // Memoize championships para evitar recálculos
+  const championships = useMemo(() => {
+    const champs = Array.from(
+      new Map(
+        matches
+          .filter(m => m.event?.name)
+          .map(m => [m.event!.name, { name: m.event!.name, logo: m.event!.logo }])
+      ).values()
+    );
 
-  const championships = Array.from(
-    new Map(
-      matches
-        .filter(m => m.event?.name)
-        .map(m => [m.event!.name, { name: m.event!.name, logo: m.event!.logo }])
-    ).values()
+    // Ordena: MAJOR primeiro, depois alfabético
+    return champs.sort((a, b) => {
+      const isMajorA = a.name.toLowerCase().includes('major');
+      const isMajorB = b.name.toLowerCase().includes('major');
+      if (isMajorA && !isMajorB) return -1;
+      if (!isMajorA && isMajorB) return 1;
+      return a.name.localeCompare(b.name);
+    });
+  }, [matches]);
+
+  const liveMatches = useMemo(() => 
+    removeDuplicates(filteredMatches.filter(m => m.status === 'LIVE')),
+    [filteredMatches]
   );
 
-  // Ordena: MAJOR primeiro, depois alfabético
-  championships.sort((a, b) => {
-    const isMajorA = a.name.toLowerCase().includes('major');
-    const isMajorB = b.name.toLowerCase().includes('major');
-    if (isMajorA && !isMajorB) return -1;
-    if (!isMajorA && isMajorB) return 1;
-    return a.name.localeCompare(b.name);
-  });
+  const futureMatches = useMemo(() => 
+    removeDuplicates(filteredMatches.filter(m => m.status !== 'LIVE')),
+    [filteredMatches]
+  );
 
-  // Renderiza um cartão de partida
-  const renderMatchCard = (item: Match, isLive: boolean = false) => (
+  // Memoize renderMatchCard para evitar recriações desnecessárias
+  const renderMatchCard = useCallback((item: Match, isLive: boolean = false) => (
     <View style={[styles.card, isLive && styles.liveCard]}>
       {/* Horário e meta no topo */}
       <View style={styles.topInfo}>
@@ -147,8 +177,8 @@ export default function MatchesScreen() {
         </View>
         {isLive && (
           <View style={styles.scoreBlock}>
-            <Text style={styles.scoreLive}>{item.team1?.score ?? ''}</Text>
             <Text style={styles.mapsLive}>({item.team1?.maps ?? '0'})</Text>
+            <Text style={styles.scoreLive}>{item.team1?.score ?? ''}</Text>
           </View>
         )}
         <View style={styles.vsBlock}>
@@ -176,7 +206,7 @@ export default function MatchesScreen() {
         </View>
       </View>
     </View>
-  );
+  ), []);
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f7f9fc' }}>
@@ -259,11 +289,11 @@ export default function MatchesScreen() {
             <>
               {liveMatches.length > 0 && (
                 <View>
-                  <Text style={styles.liveSection}>AO VIVO</Text>
+                  <Text style={styles.liveSection}>{i18n.t('live')}</Text>
                   {liveMatches.map((item, idx) => (
                     <View key={item.link || `live-${idx}`}>{renderMatchCard(item, true)}</View>
                   ))}
-                  <Text style={styles.section}>Próximas partidas</Text>
+                  <Text style={styles.section}>{i18n.t('upcoming')}</Text>
                 </View>
               )}
             </>
@@ -527,7 +557,7 @@ const styles = StyleSheet.create({
     fontSize: 20,
     fontWeight: 'bold',
     color: '#e53935',
-    marginRight: 2,
+    marginHorizontal: 2,
   },
   mapsLive: {
     fontSize: 16,
