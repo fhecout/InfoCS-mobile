@@ -9,6 +9,7 @@ import ResultsScreen from '../src/screens/ResultsScreen';
 import RankingScreen from '../src/screens/RankingScreen';
 import TransfersScreen from '../src/screens/TransfersScreen';
 import SettingsScreen from '../src/screens/SettingsScreen';
+import InMatchScreen from '../src/screens/InMatchScreen';
 
 const Stack = createStackNavigator();
 
@@ -21,6 +22,7 @@ export default function MainStack() {
         <Stack.Screen name="Ranking" component={RankingScreen} />
         <Stack.Screen name="Transferências" component={TransfersScreen} />
         <Stack.Screen name="Config" component={SettingsScreen} />
+        <Stack.Screen name="InMatch" component={InMatchScreen} />
       </Stack.Navigator>
     
   );

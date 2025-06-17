@@ -1,11 +1,15 @@
 const express = require('express');
 const dotenv = require('dotenv');
+
 const matchesRoutes = require('./src/routes/matches');
 const resultsRoutes = require('./src/routes/results');
 const rankingRoutes = require('./src/routes/ranking');
 const transfersRoutes = require('./src/routes/transfers');
 const errorHandler = require('./middlewares/errorHandler');
+const inMatchRoutes = require('./src/routes/inMatch');
+
 require('./src/monitor/monitorMatches');
+
 
 dotenv.config();
 
@@ -16,6 +20,7 @@ app.use('/matches', matchesRoutes);
 app.use('/results', resultsRoutes);
 app.use('/ranking', rankingRoutes);
 app.use('/transfers', transfersRoutes);
+app.use('/inMatch', inMatchRoutes);
 
 app.use(errorHandler);
 

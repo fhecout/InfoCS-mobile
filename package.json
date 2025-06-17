@@ -28,7 +28,9 @@
     "node-cron": "^4.1.0",
     "puppeteer": "^24.10.0",
     "puppeteer-extra": "^3.3.6",
-    "puppeteer-extra-plugin-stealth": "^2.11.2"
+    "puppeteer-extra-plugin-stealth": "^2.11.2",
+    "react-native-svg": "^5.5.1",
+    "react-native-svg-uri": "^1.2.3"
   },
   "devDependencies": {
     "eslint": "^8.0.0",

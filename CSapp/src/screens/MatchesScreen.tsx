@@ -5,6 +5,7 @@ import { cacheService } from '../services/cache';
 import BottomNavbar from '../components/BottomNavbar';
 import Feather from 'react-native-vector-icons/Feather';
 import { i18n } from '../i18n/i18n';
+import { useNavigation } from '@react-navigation/native';
 
 interface Team {
   name: string;
@@ -58,6 +59,8 @@ export default function MatchesScreen() {
   const [selectedChamp, setSelectedChamp] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [showSearch, setShowSearch] = useState(false);
+
+  const navigation = useNavigation();
 
   const fetchMatches = useCallback(async (forceRefresh = false) => {
     try {
@@ -139,73 +142,85 @@ export default function MatchesScreen() {
 
   // Memoize renderMatchCard para evitar recriações desnecessárias
   const renderMatchCard = useCallback((item: Match, isLive: boolean = false) => (
-    <View style={[styles.card, isLive && styles.liveCard]}>
-      {/* Horário e meta no topo */}
-      <View style={styles.topInfo}>
-        {item.time && <Text style={styles.time}>{item.time}</Text>}
-        {item.meta && <Text style={styles.meta}>{item.meta}</Text>}
-        {isLive && (
-          <View style={styles.liveBadge}>
-            <Text style={styles.liveBadgeText}>AO VIVO</Text>
+    <TouchableOpacity
+      onPress={() => {
+        // Código correto para produção:
+        // if (item.link) {
+        //   (navigation as any).navigate('InMatch', { matchUrl: item.link });
+        // }
+        // Para teste, sempre navega para a URL fixa:
+        (navigation as any).navigate('InMatch', { matchUrl: 'https://www.hltv.org/matches/2382612/virtuspro-vs-pain-blasttv-austin-major-2025' });
+      }}
+      activeOpacity={0.85}
+    >
+      <View style={[styles.card, isLive && styles.liveCard]}>
+        {/* Horário e meta no topo */}
+        <View style={styles.topInfo}>
+          {item.time && <Text style={styles.time}>{item.time}</Text>}
+          {item.meta && <Text style={styles.meta}>{item.meta}</Text>}
+          {isLive && (
+            <View style={styles.liveBadge}>
+              <Text style={styles.liveBadgeText}>AO VIVO</Text>
+            </View>
+          )}
+        </View>
+        {/* Evento */}
+        {item.event && (
+          <View style={styles.eventRow}>
+            <Image source={{ uri: getLogo(item.event.logo) }} style={styles.eventLogo} />
+            <Text style={styles.eventName} numberOfLines={2}>
+              {item.event.name}
+            </Text>
           </View>
         )}
+        {/* Times */}
+        <View style={styles.teamsRow}>
+          <View style={styles.teamBlockLeft}>
+            <Image source={{ uri: getLogo(item.team1?.logo) }} style={styles.logo} />
+            <Text
+              style={[
+                styles.teamName,
+                isLive && styles.teamNameLive,
+                (!item.team1?.name?.trim() && { color: '#bbb', fontStyle: 'italic' })
+              ]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {item.team1?.name?.trim() ? item.team1.name : 'A definir'}
+            </Text>
+          </View>
+          {isLive && (
+            <View style={styles.scoreBlock}>
+              <Text style={styles.mapsLive}>({item.team1?.maps ?? '0'})</Text>
+              <Text style={styles.scoreLive}>{item.team1?.score ?? ''}</Text>
+            </View>
+          )}
+          <View style={styles.vsBlock}>
+            <Text style={styles.vs}>vs</Text>
+          </View>
+          {isLive && (
+            <View style={styles.scoreBlock}>
+              <Text style={styles.scoreLive}>{item.team2?.score ?? ''}</Text>
+              <Text style={styles.mapsLive}>({item.team2?.maps ?? '0'})</Text>
+            </View>
+          )}
+          <View style={styles.teamBlockRight}>
+            <Text
+              style={[
+                styles.teamName,
+                isLive && styles.teamNameLive,
+                (!item.team2?.name?.trim() && { color: '#bbb', fontStyle: 'italic' })
+              ]}
+              numberOfLines={1}
+              ellipsizeMode="tail"
+            >
+              {item.team2?.name?.trim() ? item.team2.name : 'A definir'}
+            </Text>
+            <Image source={{ uri: getLogo(item.team2?.logo) }} style={styles.logo} />
+          </View>
+        </View>
       </View>
-      {/* Evento */}
-      {item.event && (
-        <View style={styles.eventRow}>
-          <Image source={{ uri: getLogo(item.event.logo) }} style={styles.eventLogo} />
-          <Text style={styles.eventName} numberOfLines={2}>
-            {item.event.name}
-          </Text>
-        </View>
-      )}
-      {/* Times */}
-      <View style={styles.teamsRow}>
-        <View style={styles.teamBlockLeft}>
-          <Image source={{ uri: getLogo(item.team1?.logo) }} style={styles.logo} />
-          <Text
-            style={[
-              styles.teamName,
-              isLive && styles.teamNameLive,
-              (!item.team1?.name?.trim() && { color: '#bbb', fontStyle: 'italic' })
-            ]}
-            numberOfLines={1}
-            ellipsizeMode="tail"
-          >
-            {item.team1?.name?.trim() ? item.team1.name : 'A definir'}
-          </Text>
-        </View>
-        {isLive && (
-          <View style={styles.scoreBlock}>
-            <Text style={styles.mapsLive}>({item.team1?.maps ?? '0'})</Text>
-            <Text style={styles.scoreLive}>{item.team1?.score ?? ''}</Text>
-          </View>
-        )}
-        <View style={styles.vsBlock}>
-          <Text style={styles.vs}>vs</Text>
-        </View>
-        {isLive && (
-          <View style={styles.scoreBlock}>
-            <Text style={styles.scoreLive}>{item.team2?.score ?? ''}</Text>
-            <Text style={styles.mapsLive}>({item.team2?.maps ?? '0'})</Text>
-          </View>
-        )}
-        <View style={styles.teamBlockRight}>
-          <Text
-            style={[
-              styles.teamName,
-              isLive && styles.teamNameLive,
-              (!item.team2?.name?.trim() && { color: '#bbb', fontStyle: 'italic' })
-            ]}
-            numberOfLines={1}
-            ellipsizeMode="tail"
-          >
-            {item.team2?.name?.trim() ? item.team2.name : 'A definir'}
-          </Text>
-          <Image source={{ uri: getLogo(item.team2?.logo) }} style={styles.logo} />
-        </View>
-      </View>
-    </View>
+    </TouchableOpacity>
   ), []);
 
   return (
