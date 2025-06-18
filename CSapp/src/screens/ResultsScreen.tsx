@@ -1,8 +1,9 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { View, Text, ActivityIndicator, StyleSheet, RefreshControl, Image, ScrollView, TouchableOpacity } from 'react-native';
 import api from '../services/api';
-import { useFocusEffect } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import BottomNavbar from '../components/BottomNavbar';
+import { cacheService } from '../services/cache';
 
 interface Team {
   name: string;
@@ -36,10 +37,15 @@ function getScoreParts(score: string) {
 
 const placeholderLogo = 'https://upload.wikimedia.org/wikipedia/commons/8/89/HD_transparent_picture.png';
 
-const getLogo = (logo: string) =>
-  logo && logo !== ''
-    ? `https://images.weserv.nl/?url=${encodeURIComponent(logo)}`
-    : placeholderLogo;
+function getLogo(logo?: string) {
+  if (logo && logo.trim() !== '') {
+    if (logo.endsWith('.svg') || logo.includes('.svg?')) {
+      return `https://images.weserv.nl/?url=${encodeURIComponent(logo)}`;
+    }
+    return logo;
+  }
+  return placeholderLogo;
+}
 
 export default function ResultsScreen() {
   const [matches, setMatches] = useState<Match[]>([]);
@@ -47,10 +53,25 @@ export default function ResultsScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [selectedChamp, setSelectedChamp] = useState<string | null>(null);
 
-  const fetchResults = async () => {
+  const navigation = useNavigation();
+
+  const fetchResults = async (forceRefresh = false) => {
     try {
+      setLoading(true);
+      // Busca do cache primeiro, se não for forçado
+      if (!forceRefresh) {
+        const cachedResults = await cacheService.get('results');
+        if (cachedResults) {
+          setMatches(cachedResults);
+          setLoading(false);
+          setRefreshing(false);
+          return;
+        }
+      }
       const response = await api.get('/results');
       setMatches(response.data);
+      // Salva no cache
+      await cacheService.set('results', response.data);
     } catch (error) {
       setMatches([]);
     } finally {
@@ -71,7 +92,7 @@ export default function ResultsScreen() {
 
   const onRefresh = () => {
     setRefreshing(true);
-    fetchResults();
+    fetchResults(true);
   };
 
   // Agrupa os jogos por campeonato
@@ -174,7 +195,18 @@ export default function ResultsScreen() {
                     {champMatches.map((item, idx) => {
                       const [score1, score2] = getScoreParts(item.score);
                       return (
-                        <View style={styles.resultCard} key={item.link + idx}>
+                        <TouchableOpacity
+                          style={styles.resultCard}
+                          key={item.link + idx}
+                          activeOpacity={0.85}
+                          onPress={() => {
+                            if (item.link) {
+                              (navigation as any).navigate('InMatch', { matchUrl: item.link });
+                            } else {
+                              alert('Link da partida não encontrado!');
+                            }
+                          }}
+                        >
                           <View style={styles.scoreRow}>
                             <View style={styles.teamBlock}>
                               <Image
@@ -201,7 +233,7 @@ export default function ResultsScreen() {
                               <Text style={styles.mapName}>{item.map}</Text>
                             </View>
                           )}
-                        </View>
+                        </TouchableOpacity>
                       );
                     })}
                   </View>

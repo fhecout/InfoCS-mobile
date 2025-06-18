@@ -1,33 +1,33 @@
 import React from 'react';
 import { View, TouchableOpacity, StyleSheet, Platform, Dimensions } from 'react-native';
-import { useRouter, usePathname } from 'expo-router';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 
 const tabs = [
-  { route: '/partidas', icon: 'sword-cross' },
-  { route: '/resultados', icon: 'trophy-outline' },
-  { route: '/ranking', icon: 'format-list-numbered' },
-  { route: '/transferencias', icon: 'swap-horizontal' },
-  { route: '/config', icon: 'cog-outline' },
+  { route: 'partidas', icon: 'sword-cross' },
+  { route: 'resultados', icon: 'trophy-outline' },
+  { route: 'ranking', icon: 'format-list-numbered' },
+  { route: 'transferencias', icon: 'swap-horizontal' },
+  { route: 'config', icon: 'cog-outline' },
 ] as const;
 
 const BAR_WIDTH = Math.min(Dimensions.get('window').width * 0.92, 340);
 
 export default function BottomNavbar() {
-  const router = useRouter();
-  const pathname = usePathname();
+  const navigation = useNavigation();
+  const route = useRoute();
 
   return (
     <View style={styles.fabContainer}>
       <View style={[styles.fabBar, { width: BAR_WIDTH }]}>
         {tabs.map(tab => {
-          const active = pathname === tab.route;
+          const active = route.name === tab.route;
           return (
             <TouchableOpacity
               key={tab.route}
               style={styles.fabTab}
               onPress={() => {
-                if (!active) router.push(tab.route as any);
+                if (!active) navigation.navigate(tab.route as never);
               }}
               activeOpacity={0.8}
             >

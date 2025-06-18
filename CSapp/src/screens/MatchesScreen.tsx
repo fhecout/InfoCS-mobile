@@ -144,12 +144,14 @@ export default function MatchesScreen() {
   const renderMatchCard = useCallback((item: Match, isLive: boolean = false) => (
     <TouchableOpacity
       onPress={() => {
-        // Código correto para produção:
-        // if (item.link) {
-        //   (navigation as any).navigate('InMatch', { matchUrl: item.link });
-        // }
+        console.log('Clicou no card:', item);
+        if (item.link) {
+          (navigation as any).navigate('InMatch', { matchUrl: item.link });
+        } else {
+          alert('Link da partida não encontrado!');
+        }
         // Para teste, sempre navega para a URL fixa:
-        (navigation as any).navigate('InMatch', { matchUrl: 'https://www.hltv.org/matches/2382612/virtuspro-vs-pain-blasttv-austin-major-2025' });
+        // (navigation as any).navigate('InMatch', { matchUrl: 'https://www.hltv.org/matches/2382612/virtuspro-vs-pain-blasttv-austin-major-2025' });
       }}
       activeOpacity={0.85}
     >

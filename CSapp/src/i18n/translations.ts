@@ -53,4 +53,18 @@ export const translations = {
       about: 'Acerca de'
     }
   }
+};
+
+export const vetoTranslations: { [key: string]: string } = {
+  'removed': 'removeu',
+  'picked': 'escolheu',
+  'was left over': 'sobrou',
+  'Mirage': 'Mirage',
+  'Inferno': 'Inferno',
+  'Ancient': 'Ancient',
+  'Dust2': 'Dust2',
+  'Nuke': 'Nuke',
+  'Train': 'Train',
+  'Anubis': 'Anubis',
+  // adicione outros mapas se quiser
 }; 

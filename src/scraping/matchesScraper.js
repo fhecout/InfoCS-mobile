@@ -81,11 +81,15 @@ module.exports = async function matchesScraper(date) {
                         const key = `LIVE-${team1Name}-vs-${team2Name}`;
                         if (team1Name && team2Name && !seen.has(key)) {
                             seen.add(key);
+                            const matchLink = match.querySelector('.match-info')?.getAttribute('href')
+                                ? `https://www.hltv.org${match.querySelector('.match-info')?.getAttribute('href')}`
+                                : '';
                             data.push({
                                 status: 'LIVE',
                                 team1: { name: team1Name, logo: team1Logo, score: team1Score, maps: team1Maps },
                                 team2: { name: team2Name, logo: team2Logo, score: team2Score, maps: team2Maps },
-                                event: { name: eventName, logo: eventLogo }
+                                event: { name: eventName, logo: eventLogo },
+                                link: matchLink
                             });
                         }
                     }

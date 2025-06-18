@@ -55,6 +55,7 @@ module.exports = async function inMatchScraper(matchUrl) {
             const box = document.querySelector('.standard-box.teamsBox');
             if (!box) return null;
             const teamDivs = box.querySelectorAll('.team');
+            if (!teamDivs || teamDivs.length < 2) return null;
             const team1 = teamDivs[0];
             const team2 = teamDivs[1];
             // Team 1
@@ -69,7 +70,6 @@ module.exports = async function inMatchScraper(matchUrl) {
             const team2CountryImg = team2.querySelector('img.team2');
             const team2Country = team2CountryImg?.getAttribute('title') || '';
             const team2CountryFlag = absUrl(team2CountryImg?.getAttribute('src'));
-            // Pega o logo do time 2 (prioriza night-only, depois day-only, depois .logo)
             let team2LogoImg = team2.querySelector('.logo.night-only') || team2.querySelector('.logo.day-only') || team2.querySelector('.logo');
             const team2Logo = absUrl(team2LogoImg?.getAttribute('src'));
             const team2Name = team2.querySelector('.teamName')?.textContent.trim() || '';
@@ -123,6 +123,7 @@ module.exports = async function inMatchScraper(matchUrl) {
             const stats = [];
             // Pega todos os mapas do menu
             const mapMenu = document.querySelectorAll('.box-headline .stats-menu-link .dynamic-map-name-full');
+            if (!mapMenu || mapMenu.length === 0) return [];
             const mapIds = [];
             mapMenu.forEach(div => {
                 const id = div.id;
@@ -138,6 +139,7 @@ module.exports = async function inMatchScraper(matchUrl) {
                 if (!contentDiv) return;
                 // Pega todas as tabelas de stats (uma para cada time)
                 const tables = contentDiv.querySelectorAll('table.table.totalstats');
+                if (!tables || tables.length === 0) return;
                 const teams = [];
                 tables.forEach(table => {
                     // Nome do time
@@ -146,6 +148,7 @@ module.exports = async function inMatchScraper(matchUrl) {
                     // Jogadores
                     const players = [];
                     const rows = table.querySelectorAll('tr:not(.header-row)');
+                    if (!rows || rows.length === 0) return;
                     rows.forEach(row => {
                         const playerCell = row.querySelector('td.players .flagAlign a');
                         if (!playerCell) return;
@@ -184,11 +187,57 @@ module.exports = async function inMatchScraper(matchUrl) {
             console.log('Nenhuma match stat encontrada!');
         }
 
+        // Extrai informações dos mapas
+        const mapsInfo = await page.evaluate(() => {
+            function absUrl(url) {
+                if (!url) return '';
+                if (url.startsWith('http')) return url;
+                return 'https://www.hltv.org' + url;
+            }
+
+            const maps = [];
+            const mapholders = document.querySelectorAll('.mapholder');
+            if (!mapholders || mapholders.length === 0) return [];
+            mapholders.forEach(holder => {
+                const mapNameHolder = holder.querySelector('.map-name-holder');
+                const mapName = mapNameHolder?.querySelector('.mapname')?.textContent.trim() || '';
+                const results = holder.querySelector('.results');
+                if (!results) return;
+                const team1 = results.querySelector('.results-left');
+                const team2 = results.querySelector('.results-right');
+                const team1Name = team1?.querySelector('.results-teamname')?.textContent.trim() || '';
+                const team1Score = team1?.querySelector('.results-team-score')?.textContent.trim() || '';
+                const team2Name = team2?.querySelector('.results-teamname')?.textContent.trim() || '';
+                const team2Score = team2?.querySelector('.results-team-score')?.textContent.trim() || '';
+                const halfScores = results.querySelector('.results-center-half-score')?.textContent.trim() || '';
+                maps.push({
+                    name: mapName,
+                    team1: {
+                        name: team1Name,
+                        score: team1Score
+                    },
+                    team2: {
+                        name: team2Name,
+                        score: team2Score
+                    },
+                    halfScores: halfScores
+                });
+            });
+            return maps;
+        });
+
+        if (mapsInfo && mapsInfo.length > 0) {
+            console.log('Informações dos mapas extraídas:', mapsInfo);
+        } else {
+            console.log('Nenhuma informação de mapa encontrada!');
+        }
+
         return {
             success: true,
             teamsInfo: teamsInfo || {},
             vetoInfo: vetoInfo || [],
-            matchStats: matchStats || []
+            matchStats: matchStats || [],
+            mapsInfo: mapsInfo || []
         };
 
     } catch (error) {

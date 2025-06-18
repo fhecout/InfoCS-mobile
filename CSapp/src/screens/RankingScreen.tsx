@@ -1,7 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, Image, FlatList, StyleSheet, TouchableOpacity, Modal, Pressable, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, Image, FlatList, StyleSheet, TouchableOpacity, Modal, Pressable, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import BottomNavbar from '../components/BottomNavbar'; // ajuste o caminho se necessário
 import api from '../services/api'; // ajuste o caminho se necessário
+import { cacheService } from '../services/cache';
 
 interface Player {
   name: string;
@@ -35,15 +36,40 @@ function getLogo(logo: string) {
 export default function RankingScreen() {
   const [teams, setTeams] = useState<Team[]>([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<Team | null>(null);
 
+  const fetchRanking = async (forceRefresh = false) => {
+    try {
+      setLoading(true);
+      if (!forceRefresh) {
+        const cachedRanking = await cacheService.get('ranking');
+        if (cachedRanking) {
+          setTeams(cachedRanking);
+          setLoading(false);
+          setRefreshing(false);
+          return;
+        }
+      }
+      const response = await api.get('/ranking');
+      setTeams(response.data);
+      await cacheService.set('ranking', response.data);
+    } catch (error) {
+      setTeams([]);
+    } finally {
+      setLoading(false);
+      setRefreshing(false);
+    }
+  };
+
   useEffect(() => {
-    // Troque para sua API real
-    api.get('/ranking')
-      .then(res => setTeams(res.data))
-      .catch(() => setTeams([]))
-      .finally(() => setLoading(false));
+    fetchRanking();
   }, []);
+
+  const onRefresh = () => {
+    setRefreshing(true);
+    fetchRanking(true);
+  };
 
   return (
     <View style={{ flex: 1, backgroundColor: '#f7f7f7' }}>
@@ -56,6 +82,9 @@ export default function RankingScreen() {
             data={teams}
             keyExtractor={item => item.link}
             contentContainerStyle={{ paddingBottom: 80 }}
+            refreshControl={
+              <RefreshControl refreshing={refreshing} onRefresh={onRefresh} />
+            }
             renderItem={({ item }) => (
               <TouchableOpacity style={styles.card} onPress={() => setSelectedTeam(item)}>
                 <View style={styles.left}>
